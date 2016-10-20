@@ -49,16 +49,24 @@ __fzf_cd__() {
 __fzf_history__() (
   local line
   shopt -u nocaseglob nocasematch
-  line=$(
-    HISTTIMEFORMAT= history |
-    eval "$(__fzfcmd) +s --tac +m -n2..,.. --tiebreak=index --toggle-sort=ctrl-r $FZF_CTRL_R_OPTS" |
-    command grep '^ *[0-9]') &&
+  query_line=$(
+    HISTTIMEFORMAT='' history |
+        eval "$(__fzfcmd) +s --tac +m -n2..,.. --tiebreak=index --print-query --toggle-sort=ctrl-r $FZF_CTRL_R_OPTS")
+  head -1 <<< "$query_line" > ~/.fzf/last-query
+  line=$(tail -n+2 <<< "$query_line" | command grep '^ *[0-9]') &&
     if [[ $- =~ H ]]; then
       sed 's/^ *\([0-9]*\)\** .*/!\1/' <<< "$line"
     else
       sed 's/^ *\([0-9]*\)\** *//' <<< "$line"
     fi
 )
+
+__fzf_setup_isearch_binding () {
+    local query
+    query=$(cat ~/.fzf/last-query)
+    bind '"\eX":"\C-s'"$query"'\C-j"'
+}
+bind -x '"\eY": __fzf_setup_isearch_binding'
 
 __fzf_use_tmux__() {
   [ -n "$TMUX_PANE" ] && [ "${FZF_TMUX:-1}" != 0 ] && [ ${LINES:-40} -gt 15 ]
@@ -82,7 +90,7 @@ if [[ ! -o vi ]]; then
   fi
 
   # CTRL-R - Paste the selected command from history into the command line
-  bind '"\C-r": " \C-e\C-u`__fzf_history__`\e\C-e\e^\er"'
+  bind '"\C-r": " \C-e\C-u`__fzf_history__`\e\C-e\e^\er\C-a\eY\eX"'
 
   # ALT-C - cd into the selected directory
   bind '"\ec": " \C-e\C-u`__fzf_cd__`\e\C-e\er\C-m"'
